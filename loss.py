@@ -11,19 +11,24 @@ class RobustCrossEntropyLoss(nn.Module):
         roobust_method (str): Specifies the method fo the robustness (either "forward" or "backward")
     """
     def __init__(self, T: Tensor = None,
-                 robust_method: str = "forward") -> None:
+                 robust_method: str = "backward") -> None:
         super(RobustCrossEntropyLoss, self).__init__()
         self.robust_method = robust_method
         assert self.robust_method in ["forward", "backward"]
-        if self.robust_method == "forward":
+        if self.robust_method == "backward":
             self.register_buffer("T", torch.linalg.inv(T))
         else:
-            raise NotImplementedError("Backward Type is not implemented yet")
+            self.register_buffer("T", T)
 
 
     def forward(self, pred: Tensor, target: Tensor) -> Tensor:
-        if self.robust_method == "forward":
-            target = torch.inner(target.type(self.T.dtype), self.T)
-            return - torch.mean(torch.sum(target * torch.log(pred.softmax(-1)), axis = -1))
+        target = target.type(self.T.dtype)
+        pred = pred.softmax(-1)
+
+        if self.robust_method == "backward":
+            target = torch.inner(target, self.T)
         else:
-            raise NotImplementedError("Robust Type is not implemented")
+            pred = torch.inner(pred, self.T)
+
+        pred = torch.log(pred)
+        return - torch.mean(torch.sum(target * pred, axis = -1))
