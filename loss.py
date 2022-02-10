@@ -21,9 +21,9 @@ class RobustCrossEntropyLoss(nn.Module):
             self.register_buffer("T", T)
 
 
-    def forward(self, pred: Tensor, target: Tensor) -> Tensor:
+    def forward(self, pred: Tensor, target: Tensor, eps: float = 1e-7) -> Tensor:
         target = target.type(self.T.dtype)
-        pred = pred.softmax(-1)
+        pred = torch.clamp(pred.softmax(-1), min = eps, max = 1-eps)
 
         if self.robust_method == "backward":
             target = torch.inner(target, self.T)
